@@ -28,6 +28,9 @@ jobs:
       - name: Pull image from Docker Hub
         run: docker pull ak9761498165/ecommerce-api:latest
 
+      - name: Delete old container
+        run: docker rm -f ecommerce-ui-container || true  # Ignore error if the container doesn't exist
+
       - name: Run Docker Container
         run: |
           docker run -d -p 4000:4000 --name ecommerce-ui-container \

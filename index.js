@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const path = require("path");
 const cors = require("cors");
-const bcrypt = require("bcryptjs"); // Changed to bcryptjs
+const bcrypt = require("bcryptjs");
 require('dotenv').config();
 
 const app = express();
@@ -14,19 +14,16 @@ app.use(cors());
 
 // MongoDB connection function
 async function connectDB() {
-    const dbUser = process.env.DB_USER; // MongoDB username from .env
-    const dbPassword = process.env.DB_PASSWORD; // MongoDB password from .env
+    const dbUser = process.env.DB_USER;
+    const dbPassword = process.env.DB_PASSWORD;
     const dbURL = `mongodb+srv://${dbUser}:${dbPassword}@cluster0.3ritu.mongodb.net/e-commerce?retryWrites=true&w=majority`;
-    
+
     try {
-        await mongoose.connect(dbURL, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        });
+        await mongoose.connect(dbURL);
         console.log("MongoDB connected");
     } catch (err) {
         console.error("MongoDB connection error:", err);
-        process.exit(1); // Exit process with failure
+        process.exit(1);
     }
 }
 
@@ -143,8 +140,8 @@ app.post("/signup", async (req, res) => {
 app.post("/login", async (req, res) => {
     let user = await Users.findOne({ email: req.body.email });
     if (user) {
-        const passCompare = await bcrypt.compare(req.body.password, user.password);
-        if (passCompare) {
+        // Compare the plain text password
+        if (req.body.password === user.password) {
             const data = { user: { id: user.id } };
             const token = jwt.sign(data, process.env.JWT_SECRET);
             res.json({ success: true, token });
@@ -189,7 +186,19 @@ const fetchUser = async (req, res, next) => {
 // Add to cart
 app.post("/addtocart", fetchUser, async (req, res) => {
     let userData = await Users.findOne({ _id: req.user.id });
-    userData.cartData[req.body.itemID] += 1;
+
+    // Ensure cartData is initialized
+    if (!userData.cartData) {
+        userData.cartData = {};
+    }
+
+    // Check if itemID exists in cartData and initialize if not
+    if (!userData.cartData[req.body.itemID]) {
+        userData.cartData[req.body.itemID] = 0; // Start from 0
+    }
+
+    userData.cartData[req.body.itemID] += 1; // Increment the item count
+
     await Users.findOneAndUpdate({ _id: req.user.id }, { cartData: userData.cartData });
     res.send("Added");
 });
